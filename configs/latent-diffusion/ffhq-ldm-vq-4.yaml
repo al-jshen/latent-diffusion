@@ -1,6 +1,6 @@
 model:
   base_learning_rate: 2.0e-06
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  target: dfs.third_party.latent_diffusion.ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.0015
     linear_end: 0.0195
@@ -12,7 +12,7 @@ model:
     channels: 3
     monitor: val/loss_simple_ema
     unet_config:
-      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      target: dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 64
         in_channels: 3
@@ -34,7 +34,7 @@ model:
         - 4
         num_head_channels: 32
     first_stage_config:
-      target: ldm.models.autoencoder.VQModelInterface
+      target: dfs.third_party.latent_diffusion.ldm.models.autoencoder.VQModelInterface
       params:
         embed_dim: 3
         n_embed: 8192
@@ -63,11 +63,11 @@ data:
     num_workers: 5
     wrap: false
     train:
-      target: taming.data.faceshq.FFHQTrain
+      target: dfs.third_party.taming_transformers.taming.data.faceshq.FFHQTrain
       params:
         size: 256
     validation:
-      target: taming.data.faceshq.FFHQValidation
+      target: dfs.third_party.taming_transformers.taming.data.faceshq.FFHQValidation
       params:
         size: 256
 
