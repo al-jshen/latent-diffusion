@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from taming.modules.losses.vqperceptual import *  # TODO: taming dependency yes/no?
+from dfs.third_party.taming_transformers.taming.modules.losses.vqperceptual import *  # TODO: taming dependency yes/no?
 
 
 class LPIPSWithDiscriminator(nn.Module):
