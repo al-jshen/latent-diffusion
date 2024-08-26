@@ -137,78 +137,57 @@ class VQModel(pl.LightningModule):
             x = x.detach()
         return x
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        # https://github.com/pytorch/pytorch/issues/37142
-        # try not to fool the heuristics
-        x = self.get_input(batch, self.image_key)
-        xrec, qloss, ind = self(x, return_pred_indices=True)
+    def _step(self, batch, batch_idx=None, lightning_module=None):
+        xrec, qloss, ind = self(batch, return_pred_indices=True)
 
-        if optimizer_idx == 0:
-            # autoencode
-            aeloss, log_dict_ae = self.loss(
-                qloss,
-                x,
-                xrec,
-                optimizer_idx,
-                self.global_step,
-                last_layer=self.get_last_layer(),
-                split="train",
-                predicted_indices=ind,
-            )
+        # train encoder+decoder+logvar, and the discriminator
+        aeloss, discloss, log_dict_ae, log_dict_disc = self.loss(
+            qloss,
+            batch,
+            xrec,
+            lightning_module.global_step,
+            last_layer=self.get_last_layer(),
+            predicted_indices=ind,
+        )
 
-            self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
-            return aeloss
+        return aeloss, discloss, log_dict_ae, log_dict_disc
 
-        if optimizer_idx == 1:
-            # discriminator
-            discloss, log_dict_disc = self.loss(
-                qloss, x, xrec, optimizer_idx, self.global_step, last_layer=self.get_last_layer(), split="train"
-            )
-            self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=True)
-            return discloss
+    def training_step(self, batch, batch_idx=None, lightning_module=None):
+        g_opt, d_opt = lightning_module.optimizers()
+        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx)
+
+        # generator
+        g_opt.zero_grad()
+        self.manual_backward(aeloss)
+        g_opt.step()
+
+        # discriminator
+        d_opt.zero_grad()
+        self.manual_backward(discloss)
+        d_opt.step()
+
+        loss_aux = {
+            "loss": aeloss + discloss,
+            **log_dict_ae,
+            **log_dict_disc,
+        }
+
+        return loss_aux
+
+    def step(self, batch, batch_idx=None):
+        aeloss, log_dict_ae, discloss, log_dict_disc = self._step(batch, batch_idx)
+        loss_aux = {
+            "loss": aeloss + discloss,
+            **log_dict_ae,
+            **log_dict_disc,
+        }
+        return loss_aux
 
     def validation_step(self, batch, batch_idx):
         log_dict = self._validation_step(batch, batch_idx)
         with self.ema_scope():
             self._validation_step(batch, batch_idx, suffix="_ema")
         return log_dict
-
-    def _validation_step(self, batch, batch_idx, suffix=""):
-        x = self.get_input(batch, self.image_key)
-        xrec, qloss, ind = self(x, return_pred_indices=True)
-        aeloss, log_dict_ae = self.loss(
-            qloss,
-            x,
-            xrec,
-            0,
-            self.global_step,
-            last_layer=self.get_last_layer(),
-            split="val" + suffix,
-            predicted_indices=ind,
-        )
-
-        discloss, log_dict_disc = self.loss(
-            qloss,
-            x,
-            xrec,
-            1,
-            self.global_step,
-            last_layer=self.get_last_layer(),
-            split="val" + suffix,
-            predicted_indices=ind,
-        )
-        rec_loss = log_dict_ae[f"val{suffix}/rec_loss"]
-        self.log(
-            f"val{suffix}/rec_loss", rec_loss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True
-        )
-        self.log(
-            f"val{suffix}/aeloss", aeloss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True
-        )
-        if version.parse(pl.__version__) >= version.parse("1.4.0"):
-            del log_dict_ae[f"val{suffix}/rec_loss"]
-        self.log_dict(log_dict_ae)
-        self.log_dict(log_dict_disc)
-        return self.log_dict
 
     def configure_optimizers(self):
         lr_d = self.learning_rate
@@ -357,56 +336,50 @@ class AutoencoderKL(pl.LightningModule):
         x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format).float()
         return x
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        inputs = self.get_input(batch, self.image_key)
-        reconstructions, posterior = self(inputs)
+    def _step(self, batch, batch_idx=None, lightning_module=None):
+        reconstructions, posterior = self(batch)
 
-        if optimizer_idx == 0:
-            # train encoder+decoder+logvar
-            aeloss, log_dict_ae = self.loss(
-                inputs,
-                reconstructions,
-                posterior,
-                optimizer_idx,
-                self.global_step,
-                last_layer=self.get_last_layer(),
-                split="train",
-            )
-            self.log("aeloss", aeloss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=False)
-            return aeloss
-
-        if optimizer_idx == 1:
-            # train the discriminator
-            discloss, log_dict_disc = self.loss(
-                inputs,
-                reconstructions,
-                posterior,
-                optimizer_idx,
-                self.global_step,
-                last_layer=self.get_last_layer(),
-                split="train",
-            )
-
-            self.log("discloss", discloss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=False)
-            return discloss
-
-    def validation_step(self, batch, batch_idx):
-        inputs = self.get_input(batch, self.image_key)
-        reconstructions, posterior = self(inputs)
-        aeloss, log_dict_ae = self.loss(
-            inputs, reconstructions, posterior, 0, self.global_step, last_layer=self.get_last_layer(), split="val"
+        # train encoder+decoder+logvar, and the discriminator
+        aeloss, discloss, log_dict_ae, log_dict_disc = self.loss(
+            batch,
+            reconstructions,
+            posterior,
+            lightning_module.global_step,
+            last_layer=self.get_last_layer(),
         )
 
-        discloss, log_dict_disc = self.loss(
-            inputs, reconstructions, posterior, 1, self.global_step, last_layer=self.get_last_layer(), split="val"
-        )
+        return aeloss, discloss, log_dict_ae, log_dict_disc
 
-        self.log("val/rec_loss", log_dict_ae["val/rec_loss"])
-        self.log_dict(log_dict_ae)
-        self.log_dict(log_dict_disc)
-        return self.log_dict
+    def training_step(self, batch, batch_idx=None, lightning_module=None):
+        g_opt, d_opt = lightning_module.optimizers()
+        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx)
+
+        # generator
+        g_opt.zero_grad()
+        self.manual_backward(aeloss)
+        g_opt.step()
+
+        # discriminator
+        d_opt.zero_grad()
+        self.manual_backward(discloss)
+        d_opt.step()
+
+        loss_aux = {
+            "loss": aeloss + discloss,
+            **log_dict_ae,
+            **log_dict_disc,
+        }
+
+        return loss_aux
+
+    def step(self, batch, batch_idx=None):
+        aeloss, log_dict_ae, discloss, log_dict_disc = self._step(batch, batch_idx)
+        loss_aux = {
+            "loss": aeloss + discloss,
+            **log_dict_ae,
+            **log_dict_disc,
+        }
+        return loss_aux
 
     def configure_optimizers(self):
         lr = self.learning_rate
