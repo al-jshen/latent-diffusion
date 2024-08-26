@@ -13,8 +13,7 @@ import torchvision
 from lightning.pytorch import seed_everything
 from lightning.pytorch.callbacks import Callback, LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.trainer import Trainer
-from lightning.pytorch.utilities import rank_zero_info
-from lightning.pytorch.utilities.distributed import rank_zero_only
+from lightning.pytorch.utilities import rank_zero_info, rank_zero_only
 from omegaconf import OmegaConf
 from packaging import version
 from PIL import Image
