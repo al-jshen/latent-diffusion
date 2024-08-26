@@ -28,7 +28,7 @@ model:
       - 16
       dropout: 0.0
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 6
     wrap: true

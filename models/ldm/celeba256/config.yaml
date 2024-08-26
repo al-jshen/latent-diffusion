@@ -55,7 +55,7 @@ model:
           target: torch.nn.Identity
     cond_stage_config: __is_unconditional__
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 48
     num_workers: 5

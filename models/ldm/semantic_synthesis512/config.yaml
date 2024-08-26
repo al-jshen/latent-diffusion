@@ -59,7 +59,7 @@ model:
         in_channels: 182
         out_channels: 3
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 8
     wrap: false

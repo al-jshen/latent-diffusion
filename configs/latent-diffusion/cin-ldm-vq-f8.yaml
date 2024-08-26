@@ -68,7 +68,7 @@ model:
         embed_dim: 512
         key: class_label
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 64
     num_workers: 12
@@ -88,7 +88,7 @@ data:
 lightning:
   callbacks:
     image_logger:
-      target: main.ImageLogger
+      target: dfs.third_party.latent_diffusion.main.ImageLogger
       params:
         batch_frequency: 5000
         max_images: 8

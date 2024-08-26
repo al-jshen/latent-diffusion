@@ -428,7 +428,7 @@ if __name__ == "__main__":
     #   params:
     #       key: value
     # data:
-    #   target: main.DataModuleFromConfig
+    #   target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
     #   params:
     #      batch_size: int
     #      wrap: bool

@@ -62,7 +62,7 @@ model:
         n_embed: 640
         n_layer: 32
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 28
     num_workers: 10

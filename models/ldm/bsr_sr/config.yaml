@@ -55,7 +55,7 @@ model:
     cond_stage_config:
       target: torch.nn.Identity
 data:
-  target: main.DataModuleFromConfig
+  target: dfs.third_party.latent_diffusion.main.DataModuleFromConfig
   params:
     batch_size: 64
     wrap: false
