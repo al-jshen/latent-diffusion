@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 
-import pytorch_lightning as pl
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.model import Decoder, Encoder
@@ -10,7 +10,7 @@ from dfs.third_party.latent_diffusion.ldm.util import instantiate_from_config
 from dfs.third_party.taming_transformers.taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
 
 
-class VQModel(pl.LightningModule):
+class VQModel(nn.Module):
     def __init__(
         self,
         ddconfig,
@@ -158,12 +158,12 @@ class VQModel(pl.LightningModule):
 
         # generator
         g_opt.zero_grad()
-        self.manual_backward(aeloss)
+        lightning_module.manual_backward(aeloss)
         g_opt.step()
 
         # discriminator
         d_opt.zero_grad()
-        self.manual_backward(discloss)
+        lightning_module.manual_backward(discloss)
         d_opt.step()
 
         loss_aux = {
@@ -174,8 +174,8 @@ class VQModel(pl.LightningModule):
 
         return loss_aux
 
-    def step(self, batch, batch_idx=None):
-        aeloss, log_dict_ae, discloss, log_dict_disc = self._step(batch, batch_idx)
+    def step(self, batch, batch_idx=None, lightning_module=None):
+        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx, lightning_module)
         loss_aux = {
             "loss": aeloss + discloss,
             **log_dict_ae,
@@ -272,7 +272,7 @@ class VQModelInterface(VQModel):
         return dec
 
 
-class AutoencoderKL(pl.LightningModule):
+class AutoencoderKL(nn.Module):
     def __init__(
         self,
         ddconfig,
@@ -352,16 +352,16 @@ class AutoencoderKL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx=None, lightning_module=None):
         g_opt, d_opt = lightning_module.optimizers()
-        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx)
+        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx, lightning_module)
 
         # generator
         g_opt.zero_grad()
-        self.manual_backward(aeloss)
+        lightning_module.manual_backward(aeloss)
         g_opt.step()
 
         # discriminator
         d_opt.zero_grad()
-        self.manual_backward(discloss)
+        lightning_module.manual_backward(discloss)
         d_opt.step()
 
         loss_aux = {
@@ -372,8 +372,8 @@ class AutoencoderKL(pl.LightningModule):
 
         return loss_aux
 
-    def step(self, batch, batch_idx=None):
-        aeloss, log_dict_ae, discloss, log_dict_disc = self._step(batch, batch_idx)
+    def step(self, batch, batch_idx=None, lightning_module=None):
+        aeloss, discloss, log_dict_ae, log_dict_disc = self._step(batch, batch_idx, lightning_module)
         loss_aux = {
             "loss": aeloss + discloss,
             **log_dict_ae,
@@ -381,8 +381,7 @@ class AutoencoderKL(pl.LightningModule):
         }
         return loss_aux
 
-    def configure_optimizers(self):
-        lr = self.learning_rate
+    def configure_optimizers(self, lr, **kwargs):
         opt_ae = torch.optim.Adam(
             list(self.encoder.parameters())
             + list(self.decoder.parameters())
