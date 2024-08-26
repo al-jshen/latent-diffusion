@@ -6,25 +6,41 @@ https://github.com/CompVis/taming-transformers
 -- merci
 """
 
-import torch
-import torch.nn as nn
-import numpy as np
-import pytorch_lightning as pl
-from torch.optim.lr_scheduler import LambdaLR
-from einops import rearrange, repeat
 from contextlib import contextmanager
 from functools import partial
-from tqdm import tqdm
-from torchvision.utils import make_grid
+
+import numpy as np
+import pytorch_lightning as pl
+import torch
+import torch.nn as nn
+from einops import rearrange, repeat
 from pytorch_lightning.utilities.distributed import rank_zero_only
+from torch.optim.lr_scheduler import LambdaLR
+from torchvision.utils import make_grid
+from tqdm import tqdm
 
-from dfs.third_party.latent_diffusion.ldm.util import log_txt_as_img, exists, default, ismap, isimage, mean_flat, count_params, instantiate_from_config
-from dfs.third_party.latent_diffusion.ldm.modules.ema import LitEma
-from dfs.third_party.latent_diffusion.ldm.modules.distributions.distributions import normal_kl, DiagonalGaussianDistribution
-from dfs.third_party.latent_diffusion.ldm.models.autoencoder import VQModelInterface, IdentityFirstStage, AutoencoderKL
-from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
+from dfs.third_party.latent_diffusion.ldm.models.autoencoder import AutoencoderKL, IdentityFirstStage, VQModelInterface
 from dfs.third_party.latent_diffusion.ldm.models.diffusion.ddim import DDIMSampler
-
+from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.util import (
+    extract_into_tensor,
+    make_beta_schedule,
+    noise_like,
+)
+from dfs.third_party.latent_diffusion.ldm.modules.distributions.distributions import (
+    DiagonalGaussianDistribution,
+    normal_kl,
+)
+from dfs.third_party.latent_diffusion.ldm.modules.ema import LitEma
+from dfs.third_party.latent_diffusion.ldm.util import (
+    count_params,
+    default,
+    exists,
+    instantiate_from_config,
+    isimage,
+    ismap,
+    log_txt_as_img,
+    mean_flat,
+)
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -461,7 +477,7 @@ class LatentDiffusion(DDPM):
         self.instantiate_cond_stage(cond_stage_config)
         self.cond_stage_forward = cond_stage_forward
         self.clip_denoised = False
-        self.bbox_tokenizer = None  
+        self.bbox_tokenizer = None
 
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
@@ -673,7 +689,7 @@ class LatentDiffusion(DDPM):
             else:
                 xc = x
             if not self.cond_stage_trainable or force_c_encode:
-                if isinstance(xc, dict) or isinstance(xc, list):
+                if isinstance(xc, (dict, list)):
                     # import pudb; pudb.set_trace()
                     c = self.get_learned_conditioning(xc)
                 else:
@@ -793,7 +809,7 @@ class LatentDiffusion(DDPM):
                 z = z.view((z.shape[0], -1, ks[0], ks[1], z.shape[-1]))  # (bn, nc, ks[0], ks[1], L )
 
                 # 2. apply model loop over last dim
-                if isinstance(self.first_stage_model, VQModelInterface):  
+                if isinstance(self.first_stage_model, VQModelInterface):
                     output_list = [self.first_stage_model.decode(z[:, :, :, :, i],
                                                                  force_not_quantize=predict_cids or force_not_quantize)
                                    for i in range(z.shape[-1])]
@@ -901,7 +917,7 @@ class LatentDiffusion(DDPM):
 
         if hasattr(self, "split_input_params"):
             assert len(cond) == 1  # todo can only deal with one conditioning atm
-            assert not return_ids  
+            assert not return_ids
             ks = self.split_input_params["ks"]  # eg. (128, 128)
             stride = self.split_input_params["stride"]  # eg. (64, 64)
 
@@ -1119,10 +1135,7 @@ class LatentDiffusion(DDPM):
             shape = [batch_size] + list(shape)
         else:
             b = batch_size = shape[0]
-        if x_T is None:
-            img = torch.randn(shape, device=self.device)
-        else:
-            img = x_T
+        img = torch.randn(shape, device=self.device) if x_T is None else x_T
         intermediates = []
         if cond is not None:
             if isinstance(cond, dict):
@@ -1172,10 +1185,7 @@ class LatentDiffusion(DDPM):
             log_every_t = self.log_every_t
         device = self.betas.device
         b = shape[0]
-        if x_T is None:
-            img = torch.randn(shape, device=device)
-        else:
-            img = x_T
+        img = torch.randn(shape, device=device) if x_T is None else x_T
 
         intermediates = [img]
         if timesteps is None:
@@ -1323,7 +1333,7 @@ class LatentDiffusion(DDPM):
 
             if inpaint:
                 # make a simple center square
-                b, h, w = z.shape[0], z.shape[2], z.shape[3]
+                _b, h, w = z.shape[0], z.shape[2], z.shape[3]
                 mask = torch.ones(N, h, w).to(self.device)
                 # zeros will be filled in
                 mask[:, h // 4:3 * h // 4, w // 4:3 * w // 4] = 0.
@@ -1435,7 +1445,8 @@ class Layout2ImgDiffusion(LatentDiffusion):
         mapper = dset.conditional_builders[self.cond_stage_key]
 
         bbox_imgs = []
-        map_fn = lambda catno: dset.get_textual_label(dset.get_category_id(catno))
+        def map_fn(catno):
+            return dset.get_textual_label(dset.get_category_id(catno))
         for tknzd_bbox in batch[self.cond_stage_key][:N]:
             bboximg = mapper.plot(tknzd_bbox.detach().cpu(), map_fn, (256, 256))
             bbox_imgs.append(bboximg)

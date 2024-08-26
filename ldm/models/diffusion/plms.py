@@ -1,11 +1,15 @@
 """SAMPLING ONLY."""
 
-import torch
-import numpy as np
-from tqdm import tqdm
-from functools import partial
 
-from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like
+import numpy as np
+import torch
+from tqdm import tqdm
+
+from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.util import (
+    make_ddim_sampling_parameters,
+    make_ddim_timesteps,
+    noise_like,
+)
 
 
 class PLMSSampler(object):
@@ -16,9 +20,8 @@ class PLMSSampler(object):
         self.schedule = schedule
 
     def register_buffer(self, name, attr):
-        if type(attr) == torch.Tensor:
-            if attr.device != torch.device("cuda"):
-                attr = attr.to(torch.device("cuda"))
+        if type(attr) == torch.Tensor and attr.device != torch.device("cuda"):
+            attr = attr.to(torch.device("cuda"))
         setattr(self, name, attr)
 
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
@@ -28,7 +31,8 @@ class PLMSSampler(object):
                                                   num_ddpm_timesteps=self.ddpm_num_timesteps,verbose=verbose)
         alphas_cumprod = self.model.alphas_cumprod
         assert alphas_cumprod.shape[0] == self.ddpm_num_timesteps, 'alphas have to be defined for each timestep'
-        to_torch = lambda x: x.clone().detach().to(torch.float32).to(self.model.device)
+        def to_torch(x):
+            return x.clone().detach().to(torch.float32).to(self.model.device)
 
         self.register_buffer('betas', to_torch(self.model.betas))
         self.register_buffer('alphas_cumprod', to_torch(alphas_cumprod))
@@ -120,10 +124,7 @@ class PLMSSampler(object):
                       unconditional_guidance_scale=1., unconditional_conditioning=None,):
         device = self.model.betas.device
         b = shape[0]
-        if x_T is None:
-            img = torch.randn(shape, device=device)
-        else:
-            img = x_T
+        img = torch.randn(shape, device=device) if x_T is None else x_T
 
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps

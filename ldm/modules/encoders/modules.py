@@ -1,12 +1,15 @@
+from functools import partial
+
+import clip
+import kornia
 import torch
 import torch.nn as nn
-from functools import partial
-import clip
-from einops import rearrange, repeat
-import kornia
+from einops import repeat
 
-
-from dfs.third_party.latent_diffusion.ldm.modules.x_transformer import Encoder, TransformerWrapper  # TODO: can we directly rely on lucidrains code and simply add this as a reuirement? --> test
+from dfs.third_party.latent_diffusion.ldm.modules.x_transformer import (  # TODO: can we directly rely on lucidrains code and simply add this as a reuirement? --> test
+    Encoder,
+    TransformerWrapper,
+)
 
 
 class AbstractEncoder(nn.Module):

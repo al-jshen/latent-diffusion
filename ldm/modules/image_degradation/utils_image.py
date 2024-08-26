@@ -1,11 +1,13 @@
-import os
 import math
+import os
 import random
+from datetime import datetime
+
+import cv2
 import numpy as np
 import torch
-import cv2
 from torchvision.utils import make_grid
-from datetime import datetime
+
 #import matplotlib.pyplot as plt   # TODO: check with Dominik, also bsrgan.py vs bsrgan_light.py
 
 
@@ -85,7 +87,7 @@ def _get_paths_from_images(path):
 
 '''
 # --------------------------------------------
-# split large images into small images 
+# split large images into small images
 # --------------------------------------------
 '''
 
@@ -736,10 +738,7 @@ def calculate_weights_indices(in_length, out_length, scale, kernel, kernel_width
     # weights matrix.
     distance_to_center = u.view(out_length, 1).expand(out_length, P) - indices
     # apply cubic kernel
-    if (scale < 1) and (antialiasing):
-        weights = scale * cubic(distance_to_center * scale)
-    else:
-        weights = cubic(distance_to_center)
+    weights = scale * cubic(distance_to_center * scale) if scale < 1 and antialiasing else cubic(distance_to_center)
     # Normalize the weights matrix so that each row sums to 1.
     weights_sum = torch.sum(weights, 1).view(out_length, 1)
     weights = weights / weights_sum.expand(out_length, P)
@@ -767,7 +766,7 @@ def imresize(img, scale, antialiasing=True):
     # Now the scale should be the same for H and W
     # input: img: pytorch tensor, CHW or HW [0,1]
     # output: CHW or HW [0,1] w/o round
-    need_squeeze = True if img.dim() == 2 else False
+    need_squeeze = img.dim() == 2
     if need_squeeze:
         img.unsqueeze_(0)
     in_C, in_H, in_W = img.size()
@@ -841,7 +840,7 @@ def imresize_np(img, scale, antialiasing=True):
     # input: img: Numpy, HWC or HW [0,1]
     # output: HWC or HW [0,1] w/o round
     img = torch.from_numpy(img)
-    need_squeeze = True if img.dim() == 2 else False
+    need_squeeze = img.dim() == 2
     if need_squeeze:
         img.unsqueeze_(2)
 

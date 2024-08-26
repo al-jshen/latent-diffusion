@@ -1,12 +1,13 @@
 # pytorch_diffusion + derived encoder decoder
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from einops import rearrange
 
-from dfs.third_party.latent_diffusion.ldm.util import instantiate_from_config
 from dfs.third_party.latent_diffusion.ldm.modules.attention import LinearAttention
+from dfs.third_party.latent_diffusion.ldm.util import instantiate_from_config
 
 
 def get_timestep_embedding(timesteps, embedding_dim):
@@ -133,10 +134,7 @@ class ResnetBlock(nn.Module):
         h = self.conv2(h)
 
         if self.in_channels != self.out_channels:
-            if self.use_conv_shortcut:
-                x = self.conv_shortcut(x)
-            else:
-                x = self.nin_shortcut(x)
+            x = self.conv_shortcut(x) if self.use_conv_shortcut else self.nin_shortcut(x)
 
         return x+h
 
@@ -476,7 +474,7 @@ class Decoder(nn.Module):
         self.tanh_out = tanh_out
 
         # compute in_ch_mult, block_in and curr_res at lowest res
-        in_ch_mult = (1,)+tuple(ch_mult)
+        (1,)+tuple(ch_mult)
         block_in = ch*ch_mult[self.num_resolutions-1]
         curr_res = resolution // 2**(self.num_resolutions-1)
         self.z_shape = (1,z_channels,curr_res,curr_res)
@@ -593,10 +591,7 @@ class SimpleDecoder(nn.Module):
 
     def forward(self, x):
         for i, layer in enumerate(self.model):
-            if i in [1,2,3]:
-                x = layer(x, None)
-            else:
-                x = layer(x)
+            x = layer(x, None) if i in [1, 2, 3] else layer(x)
 
         h = self.norm_out(x)
         h = nonlinearity(h)

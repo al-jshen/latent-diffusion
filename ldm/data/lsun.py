@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import PIL
 from PIL import Image
@@ -39,7 +40,7 @@ class LSUNBase(Dataset):
     def __getitem__(self, i):
         example = dict((k, self.labels[k][i]) for k in self.labels)
         image = Image.open(example["file_path_"])
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
 
         # default to score-sde preprocessing

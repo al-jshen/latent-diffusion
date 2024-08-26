@@ -1,7 +1,6 @@
 import torch
-from torch import nn
 import torch.nn.functional as F
-from einops import repeat
+from torch import nn
 
 from dfs.third_party.taming_transformers.taming.modules.discriminator.model import NLayerDiscriminator, weights_init
 from dfs.third_party.taming_transformers.taming.modules.losses.lpips import LPIPS

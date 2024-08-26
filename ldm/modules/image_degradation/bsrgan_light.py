@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-import numpy as np
-import cv2
-import torch
-
-from functools import partial
 import random
-from scipy import ndimage
+from functools import partial
+
+import albumentations
+import cv2
+import numpy as np
 import scipy
 import scipy.stats as ss
+import torch
+from scipy import ndimage
 from scipy.interpolate import interp2d
 from scipy.linalg import orth
-import albumentations
 
 import dfs.third_party.latent_diffusion.ldm.modules.image_degradation.utils_image as util
 
@@ -480,10 +480,7 @@ def degradation_bsrgan(img, sf=4, lq_patchsize=72, isp_model=None):
 
     for i in shuffle_order:
 
-        if i == 0:
-            img = add_blur(img, sf=sf)
-
-        elif i == 1:
+        if i == 0 or i == 1:
             img = add_blur(img, sf=sf)
 
         elif i == 2:
@@ -544,14 +541,13 @@ def degradation_bsrgan_variant(image, sf=4, isp_model=None):
     hq: corresponding high-quality patch, size: (lq_patchsizexsf)X(lq_patchsizexsf)XC, range: [0, 1]
     """
     image = util.uint2single(image)
-    isp_prob, jpeg_prob, scale2_prob = 0.25, 0.9, 0.25
-    sf_ori = sf
+    _isp_prob, jpeg_prob, scale2_prob = 0.25, 0.9, 0.25
 
     h1, w1 = image.shape[:2]
     image = image.copy()[:w1 - w1 % sf, :h1 - h1 % sf, ...]  # mod crop
     h, w = image.shape[:2]
 
-    hq = image.copy()
+    image.copy()
 
     if sf == 4 and random.random() < scale2_prob:  # downsample1
         if np.random.rand() < 0.5:

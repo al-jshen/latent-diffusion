@@ -1,20 +1,30 @@
-import os, yaml, pickle, shutil, tarfile, glob
-import cv2
-import albumentations
-import PIL
-import numpy as np
-import torchvision.transforms.functional as TF
-from omegaconf import OmegaConf
+import glob
+import os
+import pickle
+import shutil
+import tarfile
 from functools import partial
+
+import albumentations
+import cv2
+import numpy as np
+import PIL
+import torchvision.transforms.functional as TF
+import yaml
+from omegaconf import OmegaConf
 from PIL import Image
-from tqdm import tqdm
 from torch.utils.data import Dataset, Subset
+from tqdm import tqdm
 
 import dfs.third_party.taming_transformers.taming.data.utils as tdu
-from dfs.third_party.taming_transformers.taming.data.imagenet import str_to_indices, give_synsets_from_indices, download, retrieve
-from dfs.third_party.taming_transformers.taming.data.imagenet import ImagePaths
-
 from dfs.third_party.latent_diffusion.ldm.modules.image_degradation import degradation_fn_bsr, degradation_fn_bsr_light
+from dfs.third_party.taming_transformers.taming.data.imagenet import (
+    ImagePaths,
+    download,
+    give_synsets_from_indices,
+    retrieve,
+    str_to_indices,
+)
 
 
 def synset2idx(path_to_yaml="data/index_synset.yaml"):
@@ -26,7 +36,7 @@ def synset2idx(path_to_yaml="data/index_synset.yaml"):
 class ImageNetBase(Dataset):
     def __init__(self, config=None):
         self.config = config or OmegaConf.create()
-        if not type(self.config)==dict:
+        if type(self.config) != dict:
             self.config = OmegaConf.to_container(self.config)
         self.keep_orig_class_label = self.config.get("keep_orig_class_label", False)
         self.process_images = True  # if False we skip loading & processing images and self.data contains filepaths
@@ -49,7 +59,7 @@ class ImageNetBase(Dataset):
         ignore = set([
             "n06596364_9591.JPEG",
         ])
-        relpaths = [rpath for rpath in relpaths if not rpath.split("/")[-1] in ignore]
+        relpaths = [rpath for rpath in relpaths if rpath.split("/")[-1] not in ignore]
         if "sub_indices" in self.config:
             indices = str_to_indices(self.config["sub_indices"])
             synsets = give_synsets_from_indices(indices, path_to_yaml=self.idx2syn)  # returns a list of strings
@@ -68,7 +78,7 @@ class ImageNetBase(Dataset):
         URL = "https://heibox.uni-heidelberg.de/f/9f28e956cd304264bb82/?dl=1"
         self.human_dict = os.path.join(self.root, "synset_human.txt")
         if (not os.path.exists(self.human_dict) or
-                not os.path.getsize(self.human_dict)==SIZE):
+                os.path.getsize(self.human_dict) != SIZE):
             download(URL, self.human_dict)
 
     def _prepare_idx_to_synset(self):
@@ -166,7 +176,7 @@ class ImageNetTrain(ImageNetBase):
             datadir = self.datadir
             if not os.path.exists(datadir):
                 path = os.path.join(self.root, self.FILES[0])
-                if not os.path.exists(path) or not os.path.getsize(path)==self.SIZES[0]:
+                if not os.path.exists(path) or os.path.getsize(path) != self.SIZES[0]:
                     import academictorrents as at
                     atpath = at.get(self.AT_HASH, datastore=self.root)
                     assert atpath == path
@@ -231,7 +241,7 @@ class ImageNetValidation(ImageNetBase):
             datadir = self.datadir
             if not os.path.exists(datadir):
                 path = os.path.join(self.root, self.FILES[0])
-                if not os.path.exists(path) or not os.path.getsize(path)==self.SIZES[0]:
+                if not os.path.exists(path) or os.path.getsize(path) != self.SIZES[0]:
                     import academictorrents as at
                     atpath = at.get(self.AT_HASH, datastore=self.root)
                     assert atpath == path
@@ -242,7 +252,7 @@ class ImageNetValidation(ImageNetBase):
                     tar.extractall(path=datadir)
 
                 vspath = os.path.join(self.root, self.FILES[1])
-                if not os.path.exists(vspath) or not os.path.getsize(vspath)==self.SIZES[1]:
+                if not os.path.exists(vspath) or os.path.getsize(vspath) != self.SIZES[1]:
                     download(self.VS_URL, vspath)
 
                 with open(vspath, "r") as f:
@@ -340,7 +350,7 @@ class ImageNetSR(Dataset):
         example = self.base[i]
         image = Image.open(example["file_path_"])
 
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
 
         image = np.array(image).astype(np.uint8)

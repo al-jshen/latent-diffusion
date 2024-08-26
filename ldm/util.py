@@ -1,16 +1,12 @@
 import importlib
-
-import torch
-import numpy as np
-from collections import abc
-from einops import rearrange
-from functools import partial
-
 import multiprocessing as mp
-from threading import Thread
-from queue import Queue
-
+from collections import abc
 from inspect import isfunction
+from queue import Queue
+from threading import Thread
+
+import numpy as np
+import torch
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -76,10 +72,8 @@ def count_params(model, verbose=False):
 
 
 def instantiate_from_config(config):
-    if not "target" in config:
-        if config == '__is_first_stage__':
-            return None
-        elif config == "__is_unconditional__":
+    if "target" not in config:
+        if config == '__is_first_stage__' or config == "__is_unconditional__":
             return None
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
@@ -97,10 +91,7 @@ def _do_parallel_data_prefetch(func, Q, data, idx, idx_to_fn=False):
     # create dummy dataset instance
 
     # run prefetching
-    if idx_to_fn:
-        res = func(data, worker_id=idx)
-    else:
-        res = func(data)
+    res = func(data, worker_id=idx) if idx_to_fn else func(data)
     Q.put([idx, res])
     Q.put("Done")
 
@@ -117,13 +108,10 @@ def parallel_data_prefetch(
     elif isinstance(data, abc.Iterable):
         if isinstance(data, dict):
             print(
-                f'WARNING:"data" argument passed to parallel_data_prefetch is a dict: Using only its values and disregarding keys.'
+                'WARNING:"data" argument passed to parallel_data_prefetch is a dict: Using only its values and disregarding keys.'
             )
             data = list(data.values())
-        if target_data_type == "ndarray":
-            data = np.asarray(data)
-        else:
-            data = list(data)
+        data = np.asarray(data) if target_data_type == "ndarray" else list(data)
     else:
         raise TypeError(
             f"The data, that shall be processed parallel has to be either an np.ndarray or an Iterable, but is actually {type(data)}."
@@ -159,7 +147,7 @@ def parallel_data_prefetch(
         processes += [p]
 
     # start processes
-    print(f"Start prefetching...")
+    print("Start prefetching...")
     import time
 
     start = time.time()

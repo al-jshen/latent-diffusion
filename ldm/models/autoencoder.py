@@ -1,14 +1,13 @@
-import torch
-import pytorch_lightning as pl
-import torch.nn.functional as F
 from contextlib import contextmanager
 
-from dfs.third_party.taming_transformers.taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
 
-from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.model import Encoder, Decoder
+from dfs.third_party.latent_diffusion.ldm.modules.diffusionmodules.model import Decoder, Encoder
 from dfs.third_party.latent_diffusion.ldm.modules.distributions.distributions import DiagonalGaussianDistribution
-
 from dfs.third_party.latent_diffusion.ldm.util import instantiate_from_config
+from dfs.third_party.taming_transformers.taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
 
 
 class VQModel(pl.LightningModule):
@@ -164,7 +163,7 @@ class VQModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         log_dict = self._validation_step(batch, batch_idx)
         with self.ema_scope():
-            log_dict_ema = self._validation_step(batch, batch_idx, suffix="_ema")
+            self._validation_step(batch, batch_idx, suffix="_ema")
         return log_dict
 
     def _validation_step(self, batch, batch_idx, suffix=""):
@@ -334,10 +333,7 @@ class AutoencoderKL(pl.LightningModule):
 
     def forward(self, input, sample_posterior=True):
         posterior = self.encode(input)
-        if sample_posterior:
-            z = posterior.sample()
-        else:
-            z = posterior.mode()
+        z = posterior.sample() if sample_posterior else posterior.mode()
         dec = self.decode(z)
         return dec, posterior
 

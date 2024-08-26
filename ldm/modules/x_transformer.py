@@ -1,11 +1,12 @@
 """shout-out to https://github.com/lucidrains/x-transformers/tree/main/x_transformers"""
-import torch
-from torch import nn, einsum
-import torch.nn.functional as F
+from collections import namedtuple
 from functools import partial
 from inspect import isfunction
-from collections import namedtuple
-from einops import rearrange, repeat, reduce
+
+import torch
+import torch.nn.functional as F
+from einops import rearrange, repeat
+from torch import einsum, nn
 
 # constants
 
@@ -92,7 +93,7 @@ def pick_and_pop(keys, d):
 
 def group_dict_by_key(cond, d):
     return_val = [dict(), dict()]
-    for key in d.keys():
+    for key in d:
         match = bool(cond(key))
         ind = int(not match)
         return_val[ind][key] = d[key]
@@ -396,7 +397,7 @@ class AttentionLayers(nn.Module):
         ff_kwargs, kwargs = groupby_prefix_and_trim('ff_', kwargs)
         attn_kwargs, _ = groupby_prefix_and_trim('attn_', kwargs)
 
-        dim_head = attn_kwargs.get('dim_head', DEFAULT_DIM_HEAD)
+        attn_kwargs.get('dim_head', DEFAULT_DIM_HEAD)
 
         self.dim = dim
         self.depth = depth
@@ -467,10 +468,7 @@ class AttentionLayers(nn.Module):
             if isinstance(layer, Attention) and exists(branch_fn):
                 layer = branch_fn(layer)
 
-            if gate_residual:
-                residual_fn = GRUGating(dim)
-            else:
-                residual_fn = Residual()
+            residual_fn = GRUGating(dim) if gate_residual else Residual()
 
             self.layers.append(nn.ModuleList([
                 norm_fn(),
@@ -605,7 +603,7 @@ class TransformerWrapper(nn.Module):
             mems=None,
             **kwargs
     ):
-        b, n, device, num_mem = *x.shape, x.device, self.num_memory_tokens
+        b, _n, _device, num_mem = *x.shape, x.device, self.num_memory_tokens
         x = self.token_emb(x)
         x += self.pos_emb(x)
         x = self.emb_dropout(x)
