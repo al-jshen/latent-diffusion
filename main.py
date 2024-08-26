@@ -1,24 +1,27 @@
-import argparse, os, sys, datetime, glob, importlib, csv
-import numpy as np
+import argparse
+import datetime
+import glob
+import os
+import sys
 import time
+from functools import partial
+
+import lightning as pl
+import numpy as np
 import torch
 import torchvision
-import pytorch_lightning as pl
-
-from packaging import version
+from lightning.pytorch import seed_everything
+from lightning.pytorch.callbacks import Callback, LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.trainer import Trainer
+from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities.distributed import rank_zero_only
 from omegaconf import OmegaConf
-from torch.utils.data import random_split, DataLoader, Dataset, Subset
-from functools import partial
+from packaging import version
 from PIL import Image
+from torch.utils.data import DataLoader, Dataset
 
-from pytorch_lightning import seed_everything
-from pytorch_lightning.trainer import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
-from pytorch_lightning.utilities.distributed import rank_zero_only
-from pytorch_lightning.utilities import rank_zero_info
-
-from ldm.data.base import Txt2ImgIterableBaseDataset
-from ldm.util import instantiate_from_config
+from dfs.third_party.latent_diffusion.ldm.data.base import Txt2ImgIterableBaseDataset
+from dfs.third_party.latent_diffusion.ldm.util import instantiate_from_config
 
 
 def get_parser(**parser_kwargs):
@@ -592,7 +595,7 @@ if __name__ == "__main__":
         # add callback which sets up log directory
         default_callbacks_cfg = {
             "setup_callback": {
-                "target": "main.SetupCallback",
+                "target": "dfs.third_party.latent_diffusion.main.SetupCallback",
                 "params": {
                     "resume": opt.resume,
                     "now": now,
@@ -604,7 +607,7 @@ if __name__ == "__main__":
                 }
             },
             "image_logger": {
-                "target": "main.ImageLogger",
+                "target": "dfs.third_party.latent_diffusion.main.ImageLogger",
                 "params": {
                     "batch_frequency": 750,
                     "max_images": 4,
@@ -612,14 +615,14 @@ if __name__ == "__main__":
                 }
             },
             "learning_rate_logger": {
-                "target": "main.LearningRateMonitor",
+                "target": "dfs.third_party.latent_diffusion.main.LearningRateMonitor",
                 "params": {
                     "logging_interval": "step",
                     # "log_momentum": True
                 }
             },
             "cuda_callback": {
-                "target": "main.CUDACallback"
+                "target": "dfs.third_party.latent_diffusion.main.CUDACallback"
             },
         }
         if version.parse(pl.__version__) >= version.parse('1.4.0'):
