@@ -21,7 +21,6 @@ class VQModel(nn.Module):
         ignore_keys=[],
         image_key="image",
         colorize_nlabels=None,
-        monitor=None,
         batch_resize_range=None,
         scheduler_config=None,
         lr_g_factor=1.0,
@@ -42,8 +41,6 @@ class VQModel(nn.Module):
         if colorize_nlabels is not None:
             assert type(colorize_nlabels) == int
             self.register_buffer("colorize", torch.randn(3, colorize_nlabels, 1, 1))
-        if monitor is not None:
-            self.monitor = monitor
         self.batch_resize_range = batch_resize_range
         if self.batch_resize_range is not None:
             print(f"{self.__class__.__name__}: Using per-batch resizing in range {batch_resize_range}.")
@@ -282,7 +279,6 @@ class AutoencoderKL(nn.Module):
         ignore_keys=[],
         image_key="image",
         colorize_nlabels=None,
-        monitor=None,
     ):
         super().__init__()
         self.image_key = image_key
@@ -296,8 +292,6 @@ class AutoencoderKL(nn.Module):
         if colorize_nlabels is not None:
             assert type(colorize_nlabels) == int
             self.register_buffer("colorize", torch.randn(3, colorize_nlabels, 1, 1))
-        if monitor is not None:
-            self.monitor = monitor
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
