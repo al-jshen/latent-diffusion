@@ -105,7 +105,7 @@ class VQModel(nn.Module):
         return dec
 
     def decode_code(self, code_b):
-        quant_b = self.quantize.embedding(code_b)
+        quant_b = self.quantize.embedding(code_b).permute(0, 3, 1, 2)  # b c h w
         dec = self.decode(quant_b)
         return dec
 
