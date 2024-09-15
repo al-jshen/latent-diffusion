@@ -100,9 +100,9 @@ class LPIPSWithDiscriminator(nn.Module):
                 d_weight = self.calculate_adaptive_weight(nll_loss, g_loss, last_layer=last_layer)
             except RuntimeError:
                 assert not self.training
-                d_weight = torch.tensor(0.0)
+                d_weight = torch.tensor(0.0, device=kl_loss.device)
         else:
-            d_weight = torch.tensor(0.0)
+            d_weight = torch.tensor(0.0, device=kl_loss.device)
 
         disc_factor = adopt_weight(self.disc_factor, global_step, threshold=self.discriminator_iter_start)
         ae_loss = weighted_nll_loss + self.kl_weight * kl_loss + d_weight * disc_factor * g_loss
@@ -116,7 +116,7 @@ class LPIPSWithDiscriminator(nn.Module):
             "pix_rec_loss": pix_rec_loss.detach().mean(),
             "perceptual_loss": p_loss.detach().mean(),
             "d_weight": d_weight.detach(),
-            "disc_factor": torch.tensor(disc_factor),
+            "disc_factor": torch.tensor(disc_factor, device=ae_loss.device),
             "g_loss": g_loss.detach().mean(),
         }
 
